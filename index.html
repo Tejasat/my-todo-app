@@ -1,0 +1,418 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Meeting To-Do Organizer</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --bg: #ffffff;
+    --bg-secondary: #f6f6f4;
+    --bg-tertiary: #f0efe9;
+    --bg-info: #e6f1fb;
+    --text: #1a1a18;
+    --text-secondary: #5f5e5a;
+    --text-tertiary: #888780;
+    --text-info: #185fa5;
+    --border: rgba(0,0,0,0.12);
+    --border-secondary: rgba(0,0,0,0.22);
+    --border-info: rgba(24,95,165,0.35);
+    --radius-md: 8px;
+    --radius-lg: 12px;
+    --font: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #1e1e1c;
+      --bg-secondary: #272725;
+      --bg-tertiary: #2c2c2a;
+      --bg-info: #0c2d50;
+      --text: #f0efe9;
+      --text-secondary: #b4b2a9;
+      --text-tertiary: #888780;
+      --text-info: #85b7eb;
+      --border: rgba(255,255,255,0.10);
+      --border-secondary: rgba(255,255,255,0.18);
+      --border-info: rgba(133,183,235,0.3);
+    }
+  }
+  body { font-family: var(--font); background: var(--bg-tertiary); color: var(--text); min-height: 100vh; }
+  .app { max-width: 720px; margin: 0 auto; padding: 2rem 1rem; }
+  .page { display: none; }
+  .page.active { display: block; }
+
+  h1 { font-size: 22px; font-weight: 500; color: var(--text); }
+  h2 { font-size: 17px; font-weight: 500; color: var(--text); }
+  .sub { font-size: 13px; color: var(--text-secondary); margin-top: 3px; }
+
+  .card { background: var(--bg); border: 0.5px solid var(--border); border-radius: var(--radius-lg); padding: 1rem 1.25rem; margin-bottom: 1rem; }
+  .topbar { display: flex; align-items: center; gap: 10px; margin-bottom: 1.5rem; }
+  .back-btn { background: none; border: 0.5px solid var(--border-secondary); border-radius: var(--radius-md); padding: 6px 12px; font-size: 13px; cursor: pointer; color: var(--text-secondary); font-family: var(--font); }
+  .back-btn:hover { background: var(--bg-secondary); }
+
+  .stats { display: grid; grid-template-columns: repeat(3, minmax(0,1fr)); gap: 10px; margin-bottom: 1.25rem; }
+  .stat { background: var(--bg-secondary); border-radius: var(--radius-md); padding: .75rem 1rem; }
+  .stat-n { font-size: 22px; font-weight: 500; }
+  .stat-l { font-size: 12px; color: var(--text-secondary); margin-top: 2px; }
+
+  .toolbar { display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 1.25rem; flex-wrap: wrap; gap: 10px; }
+  .btn-group { display: flex; gap: 8px; flex-wrap: wrap; }
+  .btn { height: 36px; padding: 0 14px; font-size: 13px; font-weight: 500; border: 0.5px solid var(--border-secondary); border-radius: var(--radius-md); cursor: pointer; background: transparent; color: var(--text); font-family: var(--font); transition: background .12s; }
+  .btn:hover { background: var(--bg-secondary); }
+  .btn.primary { background: var(--text); color: var(--bg); border-color: var(--text); }
+  .btn.primary:hover { opacity: .85; }
+  .btn.ai { color: var(--text-info); border-color: var(--border-info); }
+  .btn.ai:hover { background: var(--bg-info); }
+
+  .section-label { font-size: 11px; font-weight: 500; color: var(--text-tertiary); text-transform: uppercase; letter-spacing: .06em; margin-bottom: 8px; }
+
+  .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 8px; }
+  .form-grid.full { grid-template-columns: 1fr; }
+  input, select, textarea {
+    width: 100%; font-size: 13px; color: var(--text);
+    background: var(--bg-secondary); border: 0.5px solid var(--border);
+    border-radius: var(--radius-md); padding: 0 10px; height: 36px;
+    outline: none; font-family: var(--font);
+  }
+  input:focus, select:focus, textarea:focus { border-color: var(--border-secondary); }
+  textarea { height: 90px; padding: 8px 10px; resize: vertical; }
+  .form-row { display: flex; gap: 8px; margin-top: 10px; justify-content: flex-end; }
+
+  .task-row { display: flex; align-items: flex-start; gap: 10px; padding: 10px 0; border-bottom: 0.5px solid var(--border); cursor: pointer; }
+  .task-row:last-child { border-bottom: none; }
+  .task-row:hover .task-title { color: var(--text-info); }
+  .check { width: 18px; height: 18px; border-radius: 50%; border: 1.5px solid var(--border-secondary); flex-shrink: 0; margin-top: 1px; cursor: pointer; display: flex; align-items: center; justify-content: center; }
+  .check.done { background: var(--text); border-color: var(--text); }
+  .check.done::after { content:''; display:block; width:4px; height:8px; border:1.5px solid var(--bg); border-top:none; border-left:none; transform:rotate(45deg) translate(-1px,-1px); }
+  .task-body { flex: 1; min-width: 0; }
+  .task-title { font-size: 13px; font-weight: 500; }
+  .task-meta { font-size: 12px; color: var(--text-tertiary); margin-top: 2px; }
+  .badges { display: flex; gap: 5px; flex-wrap: wrap; margin-top: 4px; }
+  .badge { font-size: 11px; padding: 2px 7px; border-radius: 20px; }
+  .p-high { background: #FCEBEB; color: #A32D2D; }
+  .p-med  { background: #FAEEDA; color: #854F0B; }
+  .p-low  { background: #EAF3DE; color: #3B6D11; }
+  .b-prod { background: #EEEDFE; color: #3C3489; }
+  .b-cat  { background: #E6F1FB; color: #185FA5; }
+  .b-blocked { background: #FCEBEB; color: #A32D2D; }
+  .b-neutral { background: var(--bg-secondary); color: var(--text-secondary); }
+  .overdue { color: #A32D2D; font-weight: 500; }
+  .done-text { text-decoration: line-through; color: var(--text-tertiary) !important; }
+
+  .today-banner { margin-bottom: 1rem; }
+  .today-inner { background: var(--bg-info); border: 0.5px solid var(--border-info); border-radius: var(--radius-lg); padding: 1rem 1.25rem; }
+  .today-task { display: flex; align-items: center; gap: 8px; padding: 6px 0; border-bottom: 0.5px solid var(--border-info); cursor: pointer; }
+  .today-task:last-child { border-bottom: none; }
+  .today-task:hover span { color: var(--text-info); text-decoration: underline; }
+
+  .filter-bar { display: flex; gap: 6px; flex-wrap: wrap; }
+  .filter-btn { height: 28px; padding: 0 10px; font-size: 12px; border: 0.5px solid var(--border); border-radius: 20px; cursor: pointer; background: transparent; color: var(--text-secondary); font-family: var(--font); }
+  .filter-btn.active { background: var(--text); color: var(--bg); border-color: var(--text); }
+
+  .detail-field { margin-bottom: 1rem; }
+  .detail-field label { font-size: 12px; color: var(--text-secondary); display: block; margin-bottom: 5px; }
+  hr { border: none; border-top: 0.5px solid var(--border); margin: 1rem 0; }
+  .empty { text-align: center; padding: 2.5rem 0; color: var(--text-tertiary); font-size: 13px; }
+
+  .toast { position: fixed; bottom: 1.5rem; right: 1.5rem; background: var(--text); color: var(--bg); font-size: 13px; padding: 10px 16px; border-radius: var(--radius-md); opacity: 0; transition: opacity .25s; pointer-events: none; z-index: 999; }
+  .toast.show { opacity: 1; }
+
+  @media(max-width:480px){
+    .form-grid { grid-template-columns: 1fr; }
+    .stats { grid-template-columns: repeat(3,minmax(0,1fr)); }
+  }
+</style>
+</head>
+<body>
+<div class="app">
+
+  <!-- HOME -->
+  <div id="pg-home" class="page active">
+    <div class="toolbar">
+      <div>
+        <h1>Meeting to-dos</h1>
+        <p class="sub" id="home-date"></p>
+      </div>
+      <div class="btn-group">
+        <button class="btn" onclick="showTodayTasks()">Show today's tasks</button>
+        <button class="btn ai" onclick="copyBlockers()">List my blockers</button>
+        <button class="btn primary" onclick="goPage('pg-add')">+ Add task</button>
+      </div>
+    </div>
+
+    <div class="stats">
+      <div class="stat"><div class="stat-n" id="s-open">0</div><div class="stat-l">Open</div></div>
+      <div class="stat"><div class="stat-n" id="s-due">0</div><div class="stat-l">Due today</div></div>
+      <div class="stat"><div class="stat-n" id="s-blocked">0</div><div class="stat-l">Have blockers</div></div>
+    </div>
+
+    <div id="today-wrap" style="display:none;" class="today-banner">
+      <div class="today-inner">
+        <div class="section-label" style="color:var(--text-info);margin-bottom:8px;">Due today</div>
+        <div id="today-list"></div>
+      </div>
+    </div>
+
+    <div class="card" style="padding-bottom:.5rem;">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:.75rem;flex-wrap:wrap;gap:8px;">
+        <div class="section-label" style="margin-bottom:0;">All tasks</div>
+        <div class="filter-bar">
+          <button class="filter-btn active" onclick="setFilter('all',this)">All</button>
+          <button class="filter-btn" onclick="setFilter('open',this)">Open</button>
+          <button class="filter-btn" onclick="setFilter('high',this)">High priority</button>
+          <button class="filter-btn" onclick="setFilter('blocked',this)">Blocked</button>
+        </div>
+      </div>
+      <div id="task-list"></div>
+    </div>
+  </div>
+
+  <!-- ADD TASK -->
+  <div id="pg-add" class="page">
+    <div class="topbar">
+      <button class="back-btn" onclick="goPage('pg-home')">← Back</button>
+      <div><h1>Add task</h1><p class="sub">Capture on the go during your meeting</p></div>
+    </div>
+    <div class="card">
+      <div class="form-grid full"><input id="a-title" placeholder="Task description *" /></div>
+      <div class="form-grid">
+        <input id="a-meeting" placeholder="Meeting name" />
+        <input type="date" id="a-date" />
+      </div>
+      <div class="form-grid">
+        <input id="a-product" placeholder="Product (e.g. Payments, Auth)" />
+        <input id="a-category" placeholder="Category (e.g. Bug, Feature)" />
+      </div>
+      <div class="form-grid">
+        <input type="date" id="a-due" />
+        <select id="a-priority">
+          <option value="high">High priority</option>
+          <option value="med" selected>Medium priority</option>
+          <option value="low">Low priority</option>
+        </select>
+      </div>
+      <div class="form-row">
+        <button class="btn" onclick="goPage('pg-home')">Cancel</button>
+        <button class="btn primary" onclick="addTask()">Save task</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- TASK DETAIL -->
+  <div id="pg-detail" class="page">
+    <div class="topbar">
+      <button class="back-btn" onclick="goPage('pg-home')">← Back</button>
+      <div id="detail-heading"></div>
+    </div>
+    <div class="card">
+      <div id="detail-tags" style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:.75rem;"></div>
+      <hr style="margin-top:0;">
+      <div class="detail-field">
+        <label>Notes</label>
+        <textarea id="d-notes" placeholder="Write your notes here..."></textarea>
+      </div>
+      <div class="detail-field">
+        <label>Blockers</label>
+        <textarea id="d-blockers" placeholder="Describe any blockers..."></textarea>
+      </div>
+      <div class="detail-field">
+        <label>Updates</label>
+        <textarea id="d-updates" placeholder="Latest updates on this task..."></textarea>
+      </div>
+      <div class="form-row" style="justify-content:space-between;">
+        <button class="btn ai" onclick="copyTaskSummary()">Copy summary</button>
+        <button class="btn primary" onclick="saveDetail()">Save notes</button>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<div id="toast" class="toast"></div>
+
+<script>
+let tasks = [];
+let filter = 'all';
+let activeId = null;
+
+try { tasks = JSON.parse(localStorage.getItem('mtodo-v2') || '[]'); } catch(e){}
+
+function save(){ try{ localStorage.setItem('mtodo-v2', JSON.stringify(tasks)); }catch(e){} }
+function today(){ return new Date().toISOString().slice(0,10); }
+
+function fmt(d){
+  if(!d) return '';
+  const [y,m,day] = d.split('-');
+  return new Date(y,m-1,day).toLocaleDateString('en-IN',{month:'short',day:'numeric'});
+}
+
+function fmtFull(d){
+  if(!d) return '';
+  const [y,m,day] = d.split('-');
+  return new Date(y,m-1,day).toLocaleDateString('en-IN',{weekday:'long',year:'numeric',month:'long',day:'numeric'});
+}
+
+function toast(msg){
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.classList.add('show');
+  setTimeout(()=>el.classList.remove('show'), 2200);
+}
+
+function goPage(id){
+  document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+  if(id==='pg-home') render();
+}
+
+function addTask(){
+  const title = document.getElementById('a-title').value.trim();
+  if(!title){ alert('Please enter a task description.'); return; }
+  tasks.unshift({
+    id: Date.now(),
+    title,
+    meeting: document.getElementById('a-meeting').value.trim() || 'General',
+    date: document.getElementById('a-date').value || today(),
+    product: document.getElementById('a-product').value.trim(),
+    category: document.getElementById('a-category').value.trim(),
+    due: document.getElementById('a-due').value,
+    priority: document.getElementById('a-priority').value,
+    done: false,
+    notes: '', blockers: '', updates: ''
+  });
+  save();
+  ['a-title','a-meeting','a-product','a-category'].forEach(id=>document.getElementById(id).value='');
+  document.getElementById('a-priority').value='med';
+  document.getElementById('a-due').value='';
+  toast('Task added');
+  goPage('pg-home');
+}
+
+function openDetail(id){
+  activeId = id;
+  const t = tasks.find(x=>x.id===id);
+  if(!t) return;
+  document.getElementById('detail-heading').innerHTML = `<h2>${t.title}</h2><p class="sub">${t.meeting} · ${fmtFull(t.date)}</p>`;
+  let tags = '';
+  if(t.priority) tags += `<span class="badge p-${t.priority}">${t.priority==='med'?'Medium':t.priority.charAt(0).toUpperCase()+t.priority.slice(1)}</span>`;
+  if(t.product) tags += `<span class="badge b-prod">${t.product}</span>`;
+  if(t.category) tags += `<span class="badge b-cat">${t.category}</span>`;
+  if(t.due) tags += `<span class="badge b-neutral">Due ${fmt(t.due)}</span>`;
+  document.getElementById('detail-tags').innerHTML = tags;
+  document.getElementById('d-notes').value = t.notes||'';
+  document.getElementById('d-blockers').value = t.blockers||'';
+  document.getElementById('d-updates').value = t.updates||'';
+  goPage('pg-detail');
+}
+
+function saveDetail(){
+  const t = tasks.find(x=>x.id===activeId);
+  if(!t) return;
+  t.notes = document.getElementById('d-notes').value;
+  t.blockers = document.getElementById('d-blockers').value;
+  t.updates = document.getElementById('d-updates').value;
+  save();
+  toast('Notes saved');
+  goPage('pg-home');
+}
+
+function toggleDone(id, e){
+  e.stopPropagation();
+  const t = tasks.find(x=>x.id===id);
+  if(t){ t.done=!t.done; save(); render(); }
+}
+
+function setFilter(f, btn){
+  filter = f;
+  document.querySelectorAll('.filter-btn').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+  render();
+}
+
+function showTodayTasks(){
+  const td = today();
+  const due = tasks.filter(t=>!t.done && t.due===td);
+  const wrap = document.getElementById('today-wrap');
+  const list = document.getElementById('today-list');
+  if(!due.length){
+    list.innerHTML = '<p style="font-size:13px;color:var(--text-info);">No tasks due today.</p>';
+  } else {
+    list.innerHTML = due.map(t=>`
+      <div class="today-task" onclick="openDetail(${t.id})">
+        <span style="font-size:13px;font-weight:500;color:var(--text-info);flex:1;">${t.title}</span>
+        ${t.product?`<span class="badge b-prod">${t.product}</span>`:''}
+        <span class="badge p-${t.priority}">${t.priority==='med'?'Med':t.priority.charAt(0).toUpperCase()+t.priority.slice(1)}</span>
+      </div>`).join('');
+  }
+  wrap.style.display = 'block';
+}
+
+function copyBlockers(){
+  const td = today();
+  const due = tasks.filter(t=>!t.done && t.due===td);
+  if(!due.length){ toast('No tasks due today'); return; }
+  const lines = due.map(t=>[
+    `Task: "${t.title}"`,
+    t.product && `Product: ${t.product}`,
+    t.category && `Category: ${t.category}`,
+    t.blockers ? `Blocker: ${t.blockers}` : 'No blocker logged'
+  ].filter(Boolean).join(' | ')).join('\n');
+  const text = `My tasks due today:\n${lines}\n\nPlease list the blockers and suggest how I can resolve them.`;
+  navigator.clipboard.writeText(text).then(()=>toast('Copied! Paste into Claude or any AI chat.')).catch(()=>toast('Copy failed — try manually.'));
+}
+
+function copyTaskSummary(){
+  const t = tasks.find(x=>x.id===activeId);
+  if(!t) return;
+  const parts = [
+    `Task: "${t.title}"`,
+    t.product && `Product: ${t.product}`,
+    t.category && `Category: ${t.category}`,
+    t.notes && `Notes: ${t.notes}`,
+    t.blockers && `Blockers: ${t.blockers}`,
+    t.updates && `Updates: ${t.updates}`
+  ].filter(Boolean).join('\n');
+  const text = `Please summarize this task and suggest next steps:\n${parts}`;
+  navigator.clipboard.writeText(text).then(()=>toast('Copied! Paste into Claude or any AI chat.')).catch(()=>toast('Copy failed.'));
+}
+
+function render(){
+  const td = today();
+  const open = tasks.filter(t=>!t.done);
+  document.getElementById('s-open').textContent = open.length;
+  document.getElementById('s-due').textContent = tasks.filter(t=>!t.done&&t.due===td).length;
+  document.getElementById('s-blocked').textContent = tasks.filter(t=>!t.done&&t.blockers&&t.blockers.trim()).length;
+
+  let visible = tasks;
+  if(filter==='open') visible = tasks.filter(t=>!t.done);
+  if(filter==='high') visible = tasks.filter(t=>t.priority==='high'&&!t.done);
+  if(filter==='blocked') visible = tasks.filter(t=>!t.done&&t.blockers&&t.blockers.trim());
+
+  const el = document.getElementById('task-list');
+  if(!visible.length){ el.innerHTML='<div class="empty">No tasks here yet.</div>'; return; }
+
+  el.innerHTML = visible.map(t=>{
+    const isOverdue = t.due && t.due < td && !t.done;
+    return `<div class="task-row" onclick="openDetail(${t.id})">
+      <div class="check ${t.done?'done':''}" onclick="toggleDone(${t.id},event)"></div>
+      <div class="task-body">
+        <div class="task-title ${t.done?'done-text':''}">${t.title}</div>
+        <div class="task-meta">${t.meeting}${t.due?` · Due <span class="${isOverdue?'overdue':''}">${fmt(t.due)}</span>`:''}</div>
+        <div class="badges">
+          <span class="badge p-${t.priority}">${t.priority==='med'?'Medium':t.priority.charAt(0).toUpperCase()+t.priority.slice(1)}</span>
+          ${t.product?`<span class="badge b-prod">${t.product}</span>`:''}
+          ${t.category?`<span class="badge b-cat">${t.category}</span>`:''}
+          ${t.blockers&&t.blockers.trim()?`<span class="badge b-blocked">Blocked</span>`:''}
+        </div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+document.getElementById('home-date').textContent = new Date().toLocaleDateString('en-IN',{weekday:'long',year:'numeric',month:'long',day:'numeric'});
+document.getElementById('a-date').value = today();
+render();
+</script>
+</body>
+</html>
