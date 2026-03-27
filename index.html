@@ -410,9 +410,25 @@ function render(){
   }).join('');
 }
 
-document.getElementById('home-date').textContent = new Date().toLocaleDateString('en-IN',{weekday:'long',year:'numeric',month:'long',day:'numeric'});
-document.getElementById('a-date').value = today();
-render();
+function refreshDateAndRender(){
+  document.getElementById('home-date').textContent = new Date().toLocaleDateString('en-IN',{weekday:'long',year:'numeric',month:'long',day:'numeric'});
+  document.getElementById('a-date').value = today();
+  document.getElementById('today-wrap').style.display = 'none';
+  render();
+}
+
+function scheduleMidnightRefresh(){
+  const now = new Date();
+  const msUntilMidnight = new Date(now.getFullYear(), now.getMonth(), now.getDate()+1, 0, 0, 5) - now;
+  setTimeout(()=>{ refreshDateAndRender(); scheduleMidnightRefresh(); }, msUntilMidnight);
+}
+
+document.addEventListener('visibilitychange', ()=>{
+  if(document.visibilityState === 'visible') refreshDateAndRender();
+});
+
+refreshDateAndRender();
+scheduleMidnightRefresh();
 </script>
 </body>
 </html>
