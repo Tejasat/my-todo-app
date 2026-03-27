@@ -142,7 +142,7 @@
     </div>
 
     <div class="stats">
-      <div class="stat"><div class="stat-n" id="s-open">0</div><div class="stat-l">Open</div></div>
+      <div class="stat"><div class="stat-n" id="s-pastdue">0</div><div class="stat-l">Past due</div></div>
       <div class="stat"><div class="stat-n" id="s-due">0</div><div class="stat-l">Due today</div></div>
       <div class="stat"><div class="stat-n" id="s-blocked">0</div><div class="stat-l">Have blockers</div></div>
     </div>
@@ -169,7 +169,7 @@
         <div class="section-label" style="margin-bottom:0;">All tasks</div>
         <div class="filter-bar">
           <button class="filter-btn active" onclick="setFilter('all',this)">All</button>
-          <button class="filter-btn" onclick="setFilter('open',this)">Open</button>
+          <button class="filter-btn" onclick="setFilter('pastdue',this)">Past due</button>
           <button class="filter-btn" onclick="setFilter('high',this)">High priority</button>
           <button class="filter-btn" onclick="setFilter('blocked',this)">Blocked</button>
         </div>
@@ -195,7 +195,7 @@
         <input id="a-category" placeholder="Category (e.g. Bug, Feature)" />
       </div>
       <div class="form-grid">
-        <input type="date" id="a-due" />
+        <div style="position:relative;"><input type="date" id="a-due" required title="Due date is required" /><span style="position:absolute;top:8px;right:8px;color:#A32D2D;font-size:14px;pointer-events:none;">*</span></div>
         <select id="a-priority">
           <option value="high">High priority</option>
           <option value="med" selected>Medium priority</option>
@@ -226,7 +226,7 @@
         <input id="e-category" placeholder="Category (e.g. Bug, Feature)" />
       </div>
       <div class="form-grid" style="margin-top:8px;">
-        <input type="date" id="e-due" />
+        <div style="position:relative;"><input type="date" id="e-due" required title="Due date is required" /><span style="position:absolute;top:8px;right:8px;color:#A32D2D;font-size:14px;pointer-events:none;">*</span></div>
         <select id="e-priority">
           <option value="high">High priority</option>
           <option value="med">Medium priority</option>
@@ -314,6 +314,8 @@ function goPage(id){
 function addTask(){
   const title = document.getElementById('a-title').value.trim();
   if(!title){ alert('Please enter a task description.'); return; }
+  const aDue = document.getElementById('a-due').value;
+  if(!aDue){ alert('Please select a due date.'); return; }
   tasks.unshift({
     id: Date.now(),
     title,
@@ -321,7 +323,7 @@ function addTask(){
     date: document.getElementById('a-date').value || today(),
     product: document.getElementById('a-product').value.trim(),
     category: document.getElementById('a-category').value.trim(),
-    due: document.getElementById('a-due').value,
+    due: aDue,
     priority: document.getElementById('a-priority').value,
     done: false,
     notes: '', blockers: '', updates: ''
@@ -379,6 +381,8 @@ function openEdit(id){
 function saveEdit(){
   const title = document.getElementById('e-title').value.trim();
   if(!title){ alert('Please enter a task description.'); return; }
+  const eDue = document.getElementById('e-due').value;
+  if(!eDue){ alert('Please select a due date.'); return; }
   const t = tasks.find(x=>x.id===activeId);
   if(!t) return;
   t.title    = title;
@@ -386,7 +390,7 @@ function saveEdit(){
   t.date     = document.getElementById('e-date').value || today();
   t.product  = document.getElementById('e-product').value.trim();
   t.category = document.getElementById('e-category').value.trim();
-  t.due      = document.getElementById('e-due').value;
+  t.due      = eDue;
   t.priority = document.getElementById('e-priority').value;
   save();
   toast('Task updated');
@@ -476,18 +480,19 @@ function copyTaskSummary(){
 
 function render(){
   const td = today();
-  const open = tasks.filter(t=>!t.done);
-  document.getElementById('s-open').textContent = open.length;
+  const pastDue = tasks.filter(t=>!t.done && t.due && t.due < td);
+  document.getElementById('s-pastdue').textContent = pastDue.length;
   document.getElementById('s-due').textContent = tasks.filter(t=>!t.done&&t.due===td).length;
   document.getElementById('s-blocked').textContent = tasks.filter(t=>!t.done&&t.blockers&&t.blockers.trim()).length;
 
   let visible = tasks;
-  if(filter==='open') visible = tasks.filter(t=>!t.done);
+  if(filter==='pastdue') visible = tasks.filter(t=>!t.done && t.due && t.due < td).sort((a,b)=>a.due.localeCompare(b.due));
   if(filter==='high') visible = tasks.filter(t=>t.priority==='high'&&!t.done);
   if(filter==='blocked') visible = tasks.filter(t=>!t.done&&t.blockers&&t.blockers.trim());
 
+  const emptyMsgs = {all:'No tasks yet. Click \"+ Add task\" to start.', pastdue:'No past due tasks. You\'re all caught up!', high:'No high priority open tasks.', blocked:'No blocked tasks.'};
   const el = document.getElementById('task-list');
-  if(!visible.length){ el.innerHTML='<div class="empty">No tasks here yet.</div>'; return; }
+  if(!visible.length){ el.innerHTML=`<div class="empty">${emptyMsgs[filter]||'No tasks here.'}</div>`; return; }
 
   el.innerHTML = visible.map(t=>{
     const isOverdue = t.due && t.due < td && !t.done;
