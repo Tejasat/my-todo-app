@@ -199,11 +199,46 @@
     </div>
   </div>
 
+  <!-- EDIT TASK -->
+  <div id="pg-edit" class="page">
+    <div class="topbar">
+      <button class="back-btn" onclick="goPage('pg-detail')">← Back</button>
+      <div><h1>Edit task</h1><p class="sub">Update any details for this task</p></div>
+    </div>
+    <div class="card">
+      <div class="form-grid full"><input id="e-title" placeholder="Task description *" /></div>
+      <div class="form-grid" style="margin-top:8px;">
+        <input id="e-meeting" placeholder="Meeting name" />
+        <input type="date" id="e-date" />
+      </div>
+      <div class="form-grid" style="margin-top:8px;">
+        <input id="e-product" placeholder="Product (e.g. Payments, Auth)" />
+        <input id="e-category" placeholder="Category (e.g. Bug, Feature)" />
+      </div>
+      <div class="form-grid" style="margin-top:8px;">
+        <input type="date" id="e-due" />
+        <select id="e-priority">
+          <option value="high">High priority</option>
+          <option value="med">Medium priority</option>
+          <option value="low">Low priority</option>
+        </select>
+      </div>
+      <div class="form-row" style="justify-content:space-between;">
+        <button class="btn" style="color:#A32D2D;border-color:rgba(163,45,45,0.3);" onclick="deleteTask()">Delete task</button>
+        <div style="display:flex;gap:8px;">
+          <button class="btn" onclick="goPage('pg-detail')">Cancel</button>
+          <button class="btn primary" onclick="saveEdit()">Save changes</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <!-- TASK DETAIL -->
   <div id="pg-detail" class="page">
     <div class="topbar">
       <button class="back-btn" onclick="goPage('pg-home')">← Back</button>
-      <div id="detail-heading"></div>
+      <div id="detail-heading" style="flex:1;"></div>
+      <button class="btn" onclick="openEdit(activeId)">Edit task</button>
     </div>
     <div class="card">
       <div id="detail-tags" style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:.75rem;"></div>
@@ -314,6 +349,45 @@ function saveDetail(){
   t.updates = document.getElementById('d-updates').value;
   save();
   toast('Notes saved');
+  goPage('pg-home');
+}
+
+function openEdit(id){
+  const t = tasks.find(x=>x.id===id);
+  if(!t) return;
+  document.getElementById('e-title').value = t.title;
+  document.getElementById('e-meeting').value = t.meeting || '';
+  document.getElementById('e-date').value = t.date || '';
+  document.getElementById('e-product').value = t.product || '';
+  document.getElementById('e-category').value = t.category || '';
+  document.getElementById('e-due').value = t.due || '';
+  document.getElementById('e-priority').value = t.priority || 'med';
+  document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+  document.getElementById('pg-edit').classList.add('active');
+}
+
+function saveEdit(){
+  const title = document.getElementById('e-title').value.trim();
+  if(!title){ alert('Please enter a task description.'); return; }
+  const t = tasks.find(x=>x.id===activeId);
+  if(!t) return;
+  t.title    = title;
+  t.meeting  = document.getElementById('e-meeting').value.trim() || 'General';
+  t.date     = document.getElementById('e-date').value || today();
+  t.product  = document.getElementById('e-product').value.trim();
+  t.category = document.getElementById('e-category').value.trim();
+  t.due      = document.getElementById('e-due').value;
+  t.priority = document.getElementById('e-priority').value;
+  save();
+  toast('Task updated');
+  openDetail(activeId);
+}
+
+function deleteTask(){
+  if(!confirm('Delete this task? This cannot be undone.')) return;
+  tasks = tasks.filter(x=>x.id!==activeId);
+  save();
+  toast('Task deleted');
   goPage('pg-home');
 }
 
