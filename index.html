@@ -136,7 +136,7 @@
       </div>
       <div class="btn-group">
         <button class="btn" onclick="showTodayTasks()">Show today's tasks</button>
-        <button class="btn ai" onclick="copyBlockers()">List my blockers</button>
+        <button class="btn ai" onclick="showBlockers()">List my blockers</button>
         <button class="btn primary" onclick="goPage('pg-add')">+ Add task</button>
       </div>
     </div>
@@ -151,6 +151,16 @@
       <div class="today-inner">
         <div class="section-label" style="color:var(--text-info);margin-bottom:8px;">Due today</div>
         <div id="today-list"></div>
+      </div>
+    </div>
+
+    <div id="blockers-wrap" style="display:none;" class="today-banner">
+      <div style="background:var(--bg);border:0.5px solid var(--border);border-radius:var(--radius-lg);padding:1rem 1.25rem;">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:.75rem;">
+          <div class="section-label" style="margin-bottom:0;">Blockers summary</div>
+          <button class="btn" style="height:26px;padding:0 10px;font-size:12px;" onclick="document.getElementById('blockers-wrap').style.display='none'">Dismiss</button>
+        </div>
+        <div id="blockers-list"></div>
       </div>
     </div>
 
@@ -422,18 +432,31 @@ function showTodayTasks(){
   wrap.style.display = 'block';
 }
 
-function copyBlockers(){
-  const td = today();
-  const due = tasks.filter(t=>!t.done && t.due===td);
-  if(!due.length){ toast('No tasks due today'); return; }
-  const lines = due.map(t=>[
-    `Task: "${t.title}"`,
-    t.product && `Product: ${t.product}`,
-    t.category && `Category: ${t.category}`,
-    t.blockers ? `Blocker: ${t.blockers}` : 'No blocker logged'
-  ].filter(Boolean).join(' | ')).join('\n');
-  const text = `My tasks due today:\n${lines}\n\nPlease list the blockers and suggest how I can resolve them.`;
-  navigator.clipboard.writeText(text).then(()=>toast('Copied! Paste into Claude or any AI chat.')).catch(()=>toast('Copy failed — try manually.'));
+function showBlockers(){
+  const withBlockers = tasks.filter(t=>!t.done && t.blockers && t.blockers.trim());
+  const wrap = document.getElementById('blockers-wrap');
+  const list = document.getElementById('blockers-list');
+  if(!withBlockers.length){
+    list.innerHTML = '<p style="font-size:13px;color:var(--text-secondary);">No blockers logged on any open task.</p>';
+    wrap.style.display = 'block';
+    return;
+  }
+  list.innerHTML = withBlockers.map(t=>{
+    const td = today();
+    const isOverdue = t.due && t.due < td;
+    const dueLabel = t.due ? `<span style="font-size:11px;color:${isOverdue?'#A32D2D':'var(--text-tertiary)'};">Due ${fmt(t.due)}</span>` : '';
+    return `<div style="padding:10px 0;border-bottom:0.5px solid var(--border);">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:5px;flex-wrap:wrap;">
+        <span style="font-size:13px;font-weight:500;cursor:pointer;" onclick="openDetail(${t.id})">${t.title}</span>
+        <span class="badge p-${t.priority}">${t.priority==='med'?'Medium':t.priority.charAt(0).toUpperCase()+t.priority.slice(1)}</span>
+        ${t.product?`<span class="badge b-prod">${t.product}</span>`:''}
+        ${dueLabel}
+      </div>
+      <div style="font-size:13px;color:var(--text-secondary);background:var(--bg-secondary);border-radius:var(--radius-md);padding:8px 10px;">${t.blockers}</div>
+    </div>`;
+  }).join('') + '<div style="padding-top:10px;font-size:12px;color:var(--text-tertiary);">Click any task title to open its detail page.</div>';
+  wrap.style.display = 'block';
+  wrap.scrollIntoView({behavior:'smooth', block:'nearest'});
 }
 
 function copyTaskSummary(){
